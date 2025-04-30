@@ -1,24 +1,23 @@
 <?php
-
-  declare(strict_types=1);
+  declare(strict_types = 1);
   require 'includes/database-connection.php';
   require 'includes/functions.php';
 
-  // Capture the ID of the category from the query string of
-  // the URL. For example, "category.php?id=1".
   $id = $_GET[ 'id' ];
 
-  // If an ID is not available, redirect the user to the
-  // "Page not found" page
   if ( ! $id ) {
     include 'page-not-found.php';
   }
 
-  // Fetch the category whose ID is provided
-  // If the category does not exist, redirect the user to "Page not found".
-  $sql      = "SELECT id, name, description FROM category WHERE id=:id;";
-  $category = pdo( $pdo, $sql, [ 'id' => $id ] )->fetch();
-  if ( ! $category ) {
+  $sql = "SELECT
+      forename, surname, joined, picture
+    FROM member
+    WHERE id = :id;"
+  ;
+
+  $member = pdo( $pdo, $sql, [ 'id' => $id ] )->fetch();
+
+  if ( ! $member ) {
     include 'page-not-found.php';
   }
 
@@ -28,23 +27,22 @@
       C.name AS category,
       CONCAT( M.forename, ' ', M.surname ) AS author,
       I.file AS image_file,
-      I.alt  AS image_alt
-    FROM article AS A
+      I.alt  AS image_alt 
+    FROM article    AS A
     JOIN      category AS C ON A.category_id = C.id
     JOIN      member   AS M ON A.member_id   = M.id
     LEFT JOIN image    AS I ON A.image_id    = I.id
     WHERE
-      A.category_id = :id AND
-      A.published   = 1
-    ORDER BY A.created DESC
-    LIMIT 6;"
+      A.member_id = :id AND
+      A.published = 1
+    ORDER BY A.created DESC;"
   ;
 
   $articles = pdo( $pdo, $sql, [ 'id' => $id ] )->fetchAll();
 
-  $title       = $category[ 'name'        ];
-  $description = $category[ 'description' ];
-  $section     = $category[ 'id'          ];
+  $title       = $member[ 'forename' ] . ' ' . $member[ 'surname' ];
+  $description = $title . ' on Creative Folk';
+  $section     = '';
 
   $sql         = "SELECT id, name FROM category WHERE navigation = 1;";
   $navigation  = pdo( $pdo, $sql )->fetchAll();
@@ -54,8 +52,20 @@
 
 <main class="container" id="content">
   <section class="header">
-    <h1><?= htmlspecialchars( $category[ 'name'        ] ) ?></h1>
-    <p><?=  htmlspecialchars( $category[ 'description' ] ) ?></p>
+    <h1>
+      <?=
+        htmlspecialchars( $member[ 'forename' ] . ' ' . $member[ 'surname' ] )
+      ?>
+    </h1>
+    <p class="member">
+      <b>Member since:</b> <?= format_date( $member[ 'joined' ] ) ?>
+    </p>
+    <img
+      src   = "uploads/<?= htmlspecialchars( $member[ 'picture' ] ?? 'member.png' ) ?>"
+      alt   = "<?= htmlspecialchars( $member[ 'forename' ] ) ?>"
+      class = "profile"
+    />
+    <br />
   </section>
   <section class="grid">
     <?php foreach ( $articles as $article ) { ?>
@@ -63,7 +73,7 @@
         <a href="article.php?id=<?= $article[ 'id' ] ?>">
           <img
             src = "uploads/<?= htmlspecialchars( $article[ 'image_file' ] ?? 'blank.png' ) ?>"
-            alt = "<?= htmlspecialchars( $article[ 'image_alt' ] ?? '' ) ?>"
+            alt = "<?= htmlspecialchars( $article[ 'image_alt' ] ) ?>"
           />
           <h2><?= htmlspecialchars( $article[ 'title'   ] ) ?></h2>
           <p><?=  htmlspecialchars( $article[ 'summary' ] ) ?></p>
